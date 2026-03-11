@@ -25,7 +25,7 @@ def get_func_by_name(name: str):
 def get_func_by_address(ea: int):
     return (idaapi.get_func(ea))
 
-def get_special_context(ea: int) -> str | None:
+def get_mode_context(ea: int) -> str | None:
     arch = ida_idp.get_idp_name().lower()
 
     match arch:
@@ -47,7 +47,7 @@ def get_instruction(ea: int):
         "ea": ea,
         "raw": raw.hex(),
         "size": insn.size, 
-        "special": get_special_context(ea)
+        "mode": get_mode_context(ea)
     }
 
 ## Get instructions before / after target 

@@ -8,8 +8,18 @@ class TracePoint():
     def __init__(self, obj, pinfo: ProjectInfo):
         self.name = obj.get("name")
         self.ea = obj.get("ea")
+        self.end_ea = obj.get("end_ea")
         self.asm_ctx = obj.get("context")
+        self.asm = AsmEngine.get()
+        self.check_bounds(obj)
         self.create_handler(pinfo.btrace_workdir)
+
+    def check_bounds(self, obj) -> None:
+        callsize = self.asm.arch.call_size()
+
+        if self.ea + callsize > self.end_ea:
+            raise Exception(f"Patched tracepoint {self.name} \
+                            overlaps with another function (call size {hex(callsize)})")
 
 
     def get_cfile_content(self, func_name: str):
@@ -39,28 +49,36 @@ REGISTER_HANDLER(
         except OSError as e:
             raise Exception(f"{e.strerror} {e.filename}")
 
+    def _is_patched(self, instr: dict) -> bool:
+        return self.ea <= instr["ea"] < self.ea + self.asm.arch.call_size(instr["mode"])
+
+    def _instr_colors(self, instr: dict) -> tuple[str, str, str]:
+        if self._is_patched(instr):
+            return ("ansicyan bold", "ansigreen bold", "")
+        return ("ansiblack", "ansiblack", "ansiblack")
+
+    def _format_disasm(self, instr: dict) -> str:
+        disasm = self.asm.arch.disassemble(instr["raw"], instr["ea"], instr["mode"])
+        return " ; ".join(f"{i.mnemonic} {i.op_str}" for i in disasm)
+
+    def _print_instr(self, instr: dict):
+        addr, raw, disasm = hex(instr["ea"]), instr["raw"], self._format_disasm(instr)
+        c0, c1, c2 = self._instr_colors(instr)
+        print_formatted_text(FormattedText([
+            (c0, f"  {addr}  "),
+            (c1, f"{raw:<10}"),
+            (c2, f"  {disasm}"),
+        ]))
+
     def print_line(self, i: int):
         print_formatted_text(FormattedText([
             ("ansiyellow bold", f"\n [{i}] "),
             ("bold",            f"{self.name}  "),
             ("ansigray",        f"{hex(self.ea)}    "),
-            ("ansiblack",        f"{os.path.basename(self.c_filename)}"),
+            ("ansiblack",       f"{os.path.basename(self.c_filename)}"),
         ]))
         print_formatted_text(FormattedText([
             ("ansigray", "  " + "─" * 58),
         ]))
-        for i, instr in enumerate(self.asm_ctx):
-            if (instr["ea"] < self.ea or instr == self.asm_ctx[-1]): # context: before / after teh target
-                colors = ["ansiblack", "ansiblack", "ansiblack"]
-            else:
-                colors = ["ansicyan bold", "ansigreen bold", ""] # patched instruction
-
-            asm = AsmEngine.get()
-            disasm_list = asm.arch.disassemble(instr["raw"], instr["ea"], instr["special"])
-            disasm_str = " ; ".join(f"{i.mnemonic} {i.op_str}" for i in disasm_list)
-
-            print_formatted_text(FormattedText([
-                (colors[0],  f"  {hex(instr['ea'])}  "),
-                (colors[1], f"{instr['raw']:<10}"),
-                (colors[2],          f"  {disasm_str}"),
-            ]))
+        for instr in self.asm_ctx:
+            self._print_instr(instr)
