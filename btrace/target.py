@@ -4,16 +4,23 @@ from btrace.ProjectInfo import ProjectInfo
 from btrace.core.asm.AsmEngine import AsmEngine
 import os
 
-class TracePoint():
-    def __init__(self, obj, pinfo: ProjectInfo):
-        self.name = obj.get("name")
-        self.ea = obj.get("ea")
-        self.end_ea = obj.get("end_ea")
-        self.asm_ctx = obj.get("context")
-        self.asm = AsmEngine.get()
-        self.check_bounds(obj)
-        self.create_handler(pinfo.btrace_workdir)
+class TracePoint:
+    c_filename : str  =""
 
+    def __init__(self, obj: dict, pinfo: ProjectInfo, *, _skip_setup=False):
+        self.name    = obj.get("name")
+        self.ea      = obj.get("ea")
+        self.end_ea  = obj.get("end_ea")
+        self.asm_ctx = obj.get("context")
+        self.asm     = AsmEngine.get()
+        if not _skip_setup:
+            self.check_bounds(obj)
+            self.create_handler(pinfo.btrace_workdir)
+
+    @classmethod
+    def from_dict(cls, data: dict, info: ProjectInfo) -> "TracePoint":
+        return cls(data, info, _skip_setup=True)
+    
     def check_bounds(self, obj) -> None:
         callsize = self.asm.arch.call_size()
 

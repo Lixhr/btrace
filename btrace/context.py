@@ -8,10 +8,10 @@ from btrace.core.asm.AsmEngine import AsmEngine
 
 class BTraceContext:
     _instance = None
-    traced = None
-    srv = None
-    info = None
-
+    traced : list[TracePoint] = []
+    srv: IdaIPC = None
+    info : ProjectInfo = None
+    
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -25,15 +25,20 @@ class BTraceContext:
 
         self.info = ProjectInfo(self.srv)
         self.asm = AsmEngine(self.info)
-        self.traced = []
-        self.import_json(f"{self.info.bin_path}.btrace")
+
+
+        data = self.load_json(f"{self.info.btrace_workdir}/.btrace")
+        self.info.fill_from_json(data) # proj_info
+        self.fill_from_json(data) # context / breakpoints
+
+
         self._initialized = True
 
     def trace(self, obj):
         new = TracePoint(obj, self.info)
 
         for i, func in enumerate(self.traced):
-            if new.ea == func.ea:
+            if new.ea == func.ea: 
                 return
 
             if new.ea < func.ea:
@@ -58,28 +63,40 @@ class BTraceContext:
         return False
     
     def export_json(self, path: str) -> None:
-        data = []
-
-        for tp in self.traced:
-            data.append({
-                "name": tp.name,
-                "ea": tp.ea,
-                "context": tp.asm_ctx
-            })
-        if (not len(data)):
+        img_seg = self.info.get_image_segment()
+        if img_seg is None:
+            raise Exception("No image segment selected")
+        data = {
+            "project": {
+                "img_base": img_seg.start
+            },
+            "traced": [
+                {
+                    "name":    tp.name,
+                    "ea":      tp.ea,
+                    "context": tp.asm_ctx,
+                }
+                for tp in self.traced
+            ]
+        }
+        if not data["traced"]:
             raise Exception("nothing to save")
-        with open(path, "w") as file:
-            json.dump(data, file, indent=2)
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
 
-    def import_json(self, path: str) -> None:
+    def load_json(self, path: str):
         try:
             with open(path, "r") as f:
                 data = json.load(f)
-
-            for obj in data:
-                self.trace(obj)
-
+                return (data)
         except FileNotFoundError:
             pass
         except OSError as e:
             print(f"Failed to load {path}: {e.strerror}")
+
+    def fill_from_json(self, data: dict | None):
+        if not data:
+            return
+        for tp_data in data.get("traced", []):
+            tp = TracePoint.from_dict(tp_data, self.info)
+            self.traced.append(tp)

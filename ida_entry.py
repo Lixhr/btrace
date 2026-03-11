@@ -17,7 +17,7 @@ PLUGIN_INSTANCE = None
 class ReloadAction(idaapi.action_handler_t):
     ACTION_ID = "bintrace:reload"
 
-    def activate(self):
+    def activate(self, ctx):
         global PLUGIN_INSTANCE
 
         if PLUGIN_INSTANCE and PLUGIN_INSTANCE.hook:
@@ -33,7 +33,7 @@ class ReloadAction(idaapi.action_handler_t):
         PLUGIN_INSTANCE.hook.ready_to_run()
         
 
-    def update(self):
+    def update(self, ctx):
         return idaapi.AST_ENABLE_ALWAYS
 
 class BinTracePlugin(idaapi.plugin_t):

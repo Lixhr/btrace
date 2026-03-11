@@ -5,6 +5,7 @@ from prompt_toolkit.formatted_text import FormattedText
 from btrace.CLI.args import Arg, ParsedArgs, parse_args
 from btrace.CLI.errors import InvalidArg, IdaError
 from btrace.CLI.utils import DEV_LOG
+# from btrace.core.patch import Patch
 
 ## Abstract Command Classes ##
 
@@ -178,10 +179,9 @@ class SaveCommand(ACommand):
     desc = "Save configuration"
 
     def execute(self, argv: list[str]) -> None:
-        out_file = f"{self.ctx.info.bin_path}.btrace"
+        out_file = self.ctx.info.conf
 
         try:
-            out_file = f"{self.ctx.info.bin_path}.btrace"
             self.ctx.export_json(out_file)
             print(f"configuration saved at {out_file}")
         except OSError as e:

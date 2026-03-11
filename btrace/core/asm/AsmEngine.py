@@ -99,7 +99,6 @@ _ARCH_MAP: dict[str, type[AArch]] = {
     "arm":   Arm,
 }
 
-
 class AsmEngine:
     _instance = None
 

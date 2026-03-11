@@ -8,6 +8,7 @@ import ida_xref
 import idc
 import ida_bytes
 import ida_idp
+import ida_segment
 
 SOCKET_ADDR = "ipc:///tmp/btrace.ipc"
 
@@ -118,6 +119,18 @@ class IPCAdd(AIPCCommand):
         print(body_rsp)
         return {"ok": True, "body": body_rsp}
 
+def get_segments():
+    segments = []
+    for i in range(ida_segment.get_segm_qty()):
+        seg = ida_segment.getnseg(i)
+
+        segments.append({
+            "name": ida_segment.get_segm_name(seg),
+            "start":  hex(seg.start_ea),
+            "end": hex(seg.end_ea)
+        })
+    return (segments)
+
 class IPCProjectInfo(AIPCCommand):
     action = "info"
 
@@ -126,7 +139,8 @@ class IPCProjectInfo(AIPCCommand):
             "bin_path": idaapi.get_input_file_path(),
             "arch": ida_idp.get_idp_name().lower(),
             "endianness": "be" if idaapi.inf_is_be() else "le",
-            "bits": 64 if idaapi.inf_is_64bit() else 32
+            "bits": 64 if idaapi.inf_is_64bit() else 32,
+            "segments": get_segments()
         }
         return {"ok": True, "body": body_rsp}
 
