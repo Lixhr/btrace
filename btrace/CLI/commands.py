@@ -5,7 +5,7 @@ from prompt_toolkit.formatted_text import FormattedText
 from btrace.CLI.args import Arg, ParsedArgs, parse_args
 from btrace.CLI.errors import InvalidArg, IdaError
 from btrace.CLI.utils import DEV_LOG
-from btrace.core.patch import Patch
+from btrace.core.patch import BinTraceMode
 # from btrace.core.patch import Patch
 
 ## Abstract Command Classes ##
@@ -191,7 +191,11 @@ class SaveCommand(ACommand):
 
 class PatchCommand(ACommand):
     name = "patch"
-    desc = "Patch the targets"
+    desc = "Apply the patches"
 
     def execute(self, argv: list[str]) -> None:
-        Patch(self.ctx.info, self.ctx.asm, self.ctx.traced)
+        if len(self.ctx.traced) == 0:
+            raise Exception("Nothing to patch.")
+        patch = BinTraceMode(self.ctx.info, self.ctx.asm, self.ctx.traced)
+
+        patch.close()

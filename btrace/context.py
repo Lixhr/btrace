@@ -34,7 +34,7 @@ class BTraceContext:
 
         self._initialized = True
 
-    def trace(self, obj):
+    def trace(self, obj) -> bool:
         new = Target(obj, self.info)
 
         for i, func in enumerate(self.traced):

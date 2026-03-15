@@ -18,6 +18,7 @@ class Target:
         if not _skip_setup:
             self._check_bounds()
             self._create_handler(pinfo.btrace_workdir)
+        self._check_relocations()
 
     @classmethod
     def from_dict(cls, data: dict, info: ProjectInfo) -> "Target":
@@ -40,7 +41,7 @@ class Target:
 
             for cs_instr in instrs:
                 instr = AsmInstr(cs_instr, entry.get("mode"))
-                instr.patched = self.ea <= instr.ea < self.ea + self.asm.arch.call_size(instr.mode)
+                instr.patched = self.ea <= instr.ea < self.ea + self.asm.arch.jmp_size(instr.mode)
                 result.append(instr)
 
         return result
@@ -48,10 +49,16 @@ class Target:
     def get_target_instructions(self) -> list[AsmInstr]:
         return [i for i in self.asm_ctx if i.patched]
 
+    def _check_relocations(self):
+        for instr in self.get_target_instructions():
+            if self.asm.arch.is_pc_relative(instr):
+                self.asm.arch.get_relocator(instr) # throws if unimplemented
+                instr.pc_relative = True
+
     def _check_bounds(self) -> None:
         if self.ea is None or self.func_end is None:
             raise Exception(f"{self.name}: missing ea or func_end ??")
-        if self.ea + self.asm.arch.call_size() >= self.func_end:
+        if self.ea + self.asm.arch.jmp_size() >= self.func_end:
             raise Exception(f"can't add {hex(self.ea)}: end of function")
 
     def _create_handler(self, btrace_workdir: str):

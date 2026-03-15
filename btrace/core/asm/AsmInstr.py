@@ -1,13 +1,15 @@
 
 from capstone import CsInsn
-from capstone.arm import ARM_OP_REG, ARM_OP_MEM
-
+from capstone.arm import ARM_OP_REG, ARM_OP_MEM, ARM_REG_PC
 
 class AsmInstr:
+    pc_relative : bool = False
+
     def __init__(self, cs_instr: CsInsn, mode: str | None = None, patched: bool = False):
         self._instr   = cs_instr
         self.mode     = mode
         self.patched  = patched
+
 
     @property
     def ea(self):
